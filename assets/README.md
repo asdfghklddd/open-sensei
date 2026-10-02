@@ -10,4 +10,4 @@ Use case: logo-brand. Asset type: production macOS application icon for Open Sen
 
 ## Dashboard previews
 
-`dashboard-light.png` and `dashboard-dark.png` are native SwiftUI renders of the 1.2.1 compact panel using illustrative readings. They are layout examples, not measurements of a user’s current hardware.
+`dashboard-light.png` and `dashboard-dark.png` are native SwiftUI renders of the 1.2.2 compact panel using illustrative readings. They are layout examples, not measurements of a user’s current hardware.

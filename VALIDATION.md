@@ -1,6 +1,6 @@
 # Validation / 验证范围
 
-Release: **1.2.1 / build 13**, 2026-10-02. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
+Release: **1.2.2 / build 14**, 2026-10-02. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
 
 ## Automated checks
 
@@ -10,6 +10,14 @@ Release: **1.2.1 / build 13**, 2026-10-02. Physical checks were performed on an 
 - Standard ICNS conversion and reverse conversion passed. Finder displayed the actual generated icon.
 - App and embedded helper passed `codesign --verify --deep --strict`; Info.plist and arm64 architecture were checked.
 - The DMG passed `hdiutil verify`. Its mounted app passed signature verification and matched the source bundle's executable SHA-256. The Applications link resolves to `/Applications`.
+
+## Dense metric rows (1.2.2)
+
+- All 52 existing Swift tests passed again. Sampling and fan-control code were unchanged.
+- The complete default panel now measures 400 × 406 points, about 29% shorter than 1.2.1. The minimal CPU/memory/storage panel is 400 × 251 points.
+- CPU and network mini trends reuse existing 60-point RAM buffers. Memory exposes its components and swap using binary units consistently; battery voltage is also visible. Short load bars adapt their segment count to the available width.
+- Native pin, edge collapse, expansion and unpin were verified, then the app was returned to menu-bar mode. Both appearances, unavailable readings, 100% loads, a large-memory configuration, low battery and long network-rate labels were rendered and inspected.
+- No hardware polling, history files or animation timers were added.
 
 ## Compact panel update (1.2.1)
 
@@ -27,6 +35,19 @@ Earlier fixed-speed and temperature-curve sessions were physically checked, then
 ## Performance methodology
 
 CPU is measured using process CPU time divided by elapsed wall time, with one core equal to 100%. Memory uses `phys_footprint`. Short runs, cold launch, previously opened windows, thermal state, and locked-screen conditions are different scenarios and should not be treated as interchangeable benchmarks.
+
+### 1.2.2 dense panel with mini trends
+
+A completed release-binary run on M1 Pro / macOS 27 after a 3-second warm-up:
+
+| Phase | Elapsed | CPU (one core = 100%) | Physical footprint |
+| --- | --- | --- | --- |
+| Visible dense panel | 30.63 s | 1.143% | 34.69 MB |
+| All surfaces closed | 36.69 s | 0.0197% | 34.16 MB |
+
+The visible phase reported `visible=true`; the closed phase reported `visible=false`, read CPU once and performed zero memory, GPU, network, battery, temperature or storage reads. An earlier run was excluded from idle reporting because its panel became visible again during that phase. These are short observations, not evidence of a speed improvement over 1.2.1.
+
+中文：带迷你趋势的密集面板展开时，单核心 CPU 约 1.143%、物理内存 34.69 MB；正常收起后约 0.0197%、34.16 MB，仅刷新一次菜单栏 CPU。此前有一次待机阶段面板重新可见，该段不计作待机结果。
 
 ### 1.2.1 compact panel
 
@@ -62,6 +83,6 @@ The release is **ad-hoc signed and not Developer ID notarized**. The published b
 
 ## 中文摘要
 
-1.2.1 再次通过 52 项 Swift 测试；风扇部分未改动，沿用 1.2.0 的 9 项模拟会话测试及 C 侧校验。原生图标、DMG 完整性、签名、架构和挂载后的二进制一致性已检查；Finder 正确显示新图标。电池页面、报告、图表及深色外观已检查，测试后恢复跟随系统外观。
+1.2.2 再次通过 52 项 Swift 测试；风扇部分未改动，沿用 1.2.0 的 9 项模拟会话测试及 C 侧校验。原生图标、DMG 完整性、签名、架构和挂载后的二进制一致性已检查；Finder 正确显示新图标。电池页面、报告、图表及深色外观已检查，测试后恢复跟随系统外观。
 
 实机范围为 M1 Pro / macOS 27；其他设备、系统、实际通知投递和部分电源状态转换尚未完整覆盖。发行包采用 ad-hoc 签名，尚未公证。个人诊断、原始硬件记录和编译缓存不会发布到仓库。性能测试口径如上，不把短时样本当作所有 Mac 的保证。

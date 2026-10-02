@@ -11,7 +11,7 @@ The current interface is primarily Chinese. This repository provides English and
 
 ## Install
 
-1. Download `Open-Sensei-1.2.1-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
+1. Download `Open-Sensei-1.2.2-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
 2. Open the DMG and drag **Open Sensei.app** onto **Applications**.
 3. Eject the DMG and launch the app from Applications. Click the menu-bar icon; **⌘0** opens the management window.
 
@@ -38,9 +38,9 @@ shasum -a 256 -c SHA256SUMS
 
 ### Compact control panel
 
-The menu-bar panel puts current readings first: segmented CPU/GPU load and capacity bars, memory pressure and swap, paired upload/download rates, and battery power, temperature and cycles. Each card opens its corresponding management page. The top strip shows macOS thermal pressure, sampling cadence and the last update time.
+The menu-bar panel uses compact metric rows. CPU and network mini trends sit beside their live values. Memory shows App, wired, compressed and swap use; storage and GPU use small capacity/load bars; battery exposes power, temperature, voltage and cycles. Each row opens its corresponding management page. The top strip shows macOS thermal pressure, sampling cadence and the last update time.
 
-The complete default panel measures 400 × 569 points, compared with 384 × 719 in 1.2.0. The smaller layout uses the same sampling schedule and data sources, with no additional history or animation timer. CPU/network trend charts remain in the management window.
+The complete default panel measures 400 × 406 points, about 29% shorter than the 400 × 569 panel in 1.2.1. Reduced padding and inline layouts make room for more readings and small trends. The same bounded histories and sampling schedule are reused, with no additional hardware polling or animation timer.
 
 <p><img src="assets/dashboard-light.png" width="320" alt="Compact panel in light appearance"> <img src="assets/dashboard-dark.png" width="320" alt="Compact panel in dark appearance"></p>
 

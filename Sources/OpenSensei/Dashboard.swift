@@ -5,7 +5,7 @@ private let mint = SenseiTheme.accent
 private let muted = SenseiTheme.secondary
 
 /// A compact instrument panel. All readings reuse the monitor's existing demand;
-/// charts, expanded breakdowns and tools live in the management window.
+/// tiny trends share the value rows; expanded tools live in the management window.
 struct Dashboard: View {
     @AppStorage("appearance") private var appearance = "system"
     @ObservedObject var monitor: Monitor
@@ -22,13 +22,13 @@ struct Dashboard: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             header
             statusStrip
             ForEach(monitor.dashboardOrder) { module in
                 switch module {
                 case .cpu: cpuCard
-                case .memoryStorage: HStack(alignment: .top, spacing: 8) { memoryCard; diskCard }
+                case .memoryStorage: VStack(spacing: 4) { memoryCard; diskCard }
                 case .gpu: if monitor.showGPU { gpuRow }
                 case .network: if monitor.showNetwork { networkCard }
                 case .battery: if monitor.showBattery { batteryCard }
@@ -36,7 +36,7 @@ struct Dashboard: View {
             }
             footer
         }
-        .padding(14)
+        .padding(10)
         .frame(width: 400)
         .background(SenseiTheme.background)
         .foregroundStyle(Color.primary)
@@ -44,17 +44,16 @@ struct Dashboard: View {
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(nsImage: NSApplication.shared.applicationIconImage)
-                .resizable().frame(width: 34, height: 34).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Open Sensei").font(.system(size: 15, weight: .semibold, design: .rounded))
-                Text(monitor.chip).font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
-            }
+                .resizable().frame(width: 25, height: 25).accessibilityHidden(true)
+            Text("Open Sensei").font(.system(size: 14, weight: .semibold, design: .rounded)).fixedSize()
+            Text(monitor.chip.replacingOccurrences(of: "Apple ", with: "") + " · \(ProcessInfo.processInfo.activeProcessorCount) 核")
+                .font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
             Spacer(minLength: 4)
             Button(action: togglePin) {
                 Image(systemName: monitor.pinned ? "pin.fill" : "pin")
-                    .foregroundStyle(monitor.pinned ? mint : muted).frame(width: 28, height: 30)
+                    .foregroundStyle(monitor.pinned ? mint : muted).frame(width: 25, height: 26)
             }.buttonStyle(.plain).help(monitor.pinned ? "取消固定，回到菜单栏" : "固定为悬浮面板")
                 .accessibilityLabel(monitor.pinned ? "取消固定" : "固定悬浮面板")
             Menu {
@@ -69,17 +68,17 @@ struct Dashboard: View {
                 Button("打开活动监视器") { openActivityMonitor() }
                 Button("退出 Open Sensei") { NSApp.terminate(nil) }.keyboardShortcut("q")
             } label: {
-                Image(systemName: "ellipsis").foregroundStyle(muted).frame(width: 22, height: 30)
+                Image(systemName: "ellipsis").foregroundStyle(muted).frame(width: 22, height: 26)
             }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("设置")
             if monitor.pinned {
                 Button(action: collapse) {
-                    Image(systemName: "sidebar.right").frame(width: 25, height: 30)
+                    Image(systemName: "sidebar.right").frame(width: 23, height: 26)
                 }.buttonStyle(.plain).foregroundStyle(muted).help("贴边收起").accessibilityLabel("贴边收起面板")
                 Button(action: close) {
-                    Image(systemName: "xmark").font(.system(size: 10)).frame(width: 25, height: 30)
+                    Image(systemName: "xmark").font(.system(size: 10)).frame(width: 23, height: 26)
                 }.buttonStyle(.plain).foregroundStyle(muted).help("隐藏面板").accessibilityLabel("隐藏面板")
             }
-        }.padding(.bottom, 2)
+        }.padding(.bottom, 1)
     }
 
     private var statusStrip: some View {
@@ -99,89 +98,87 @@ struct Dashboard: View {
                 .monospacedDigit()
         }
         .font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
-        .padding(.horizontal, 9).padding(.vertical, 6)
+        .padding(.horizontal, 8).padding(.vertical, 4)
         .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 7))
         .help("最近完成一轮采样的时间。不同指标按各自频率刷新，存储容量每 60 秒最多读取一次。")
     }
 
     private var cpuCard: some View {
         Button { openPage(.processes) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        moduleTitle("CPU", subtitle: "处理器", icon: "cpu", color: mint)
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            reading(Format.percent(s.cpu), unit: "%", size: 31)
-                            Text("\(ProcessInfo.processInfo.activeProcessorCount) 核心")
-                                .font(.system(size: 10)).foregroundStyle(muted).padding(.leading, 5)
-                        }
+            HStack(spacing: 8) {
+                moduleTitle("CPU", icon: "cpu", color: mint).frame(width: 51, alignment: .leading)
+                reading(Format.percent(s.cpu), unit: "%", size: 25).frame(width: 61, alignment: .leading)
+                CompactTrend(values: monitor.cpuHistory, color: mint, ceiling: 1,
+                             available: s.stamps[.cpu]?.condition != .unavailable)
+                    .frame(maxWidth: .infinity).frame(height: 26)
+                    .help("CPU 最近最多 60 个采样点，纵轴 0–100%；收起后清空。")
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("热点").font(.system(size: 10)).foregroundStyle(muted)
+                    if monitor.showTemperatures {
+                        reading(s.sensors.hottest.map { String(format: "%.1f", $0) } ?? "—", unit: "°C", size: 17)
+                    } else {
+                        Text("已关闭").font(.system(size: 10)).foregroundStyle(muted)
                     }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 5) {
-                        Text("核心热点").font(.system(size: 10)).foregroundStyle(muted)
-                        if monitor.showTemperatures {
-                            reading(s.sensors.hottest.map { String(format: "%.1f", $0) } ?? "—", unit: "°C", size: 21)
-                        } else {
-                            Text("采集已关闭").font(.system(size: 11)).foregroundStyle(muted)
-                        }
-                    }
-                    chevron.padding(.leading, 2)
-                }
-                SegmentedLevel(value: s.cpu, color: mint).frame(height: 7)
+                }.fixedSize()
+                chevron
             }
         }.buttonStyle(DashboardCardStyle(color: mint))
-            .help("CPU 总使用率；分段条范围 0–100%。点击查看资源进程。")
+            .help("CPU 总使用率、近期趋势与核心热点。点击查看资源进程。")
     }
 
     private var memoryCard: some View {
         Button { openPage(.overview) } label: {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack { moduleTitle("内存", icon: "memorychip", color: .purple); Spacer(); chevron }
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    reading(s.memoryUsed.map { String(format: "%.1f", $0 / 1_073_741_824) } ?? "—", unit: "GB", size: 25)
-                    Spacer(minLength: 1)
-                    Text("/ \(Int(s.memoryTotal / 1_073_741_824))").font(.system(size: 11)).foregroundStyle(muted)
+            VStack(spacing: 5) {
+                HStack(spacing: 8) {
+                    moduleTitle("内存", icon: "memorychip", color: .purple).frame(width: 51, alignment: .leading)
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        reading(s.memoryUsed.map { String(format: "%.1f", $0 / 1_073_741_824) } ?? "—", unit: "/ \(Int(s.memoryTotal / 1_073_741_824)) GB", size: 20)
+                    }
+                    SegmentedLevel(value: s.memoryUsed == nil ? nil : s.memoryFraction, color: .purple)
+                        .frame(maxWidth: .infinity).frame(height: 6)
+                    Text("压力 \(s.memoryPressure)").font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(memoryPressureColor).fixedSize()
+                    chevron
                 }
-                SegmentedLevel(value: s.memoryUsed == nil ? nil : s.memoryFraction, color: .purple).frame(height: 5)
-                HStack(spacing: 4) {
-                    Text("压力").foregroundStyle(muted)
-                    Text(s.memoryPressure).foregroundStyle(memoryPressureColor)
-                    Spacer(minLength: 2)
-                    Text("交换 \(s.swap.map { Format.bytes($0) } ?? "—")").foregroundStyle(muted).monospacedDigit()
-                }.font(.system(size: 10, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9)
-            }.frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 0) {
+                    detail("App", value: memoryAmount(s.appMemory))
+                    Spacer(minLength: 4)
+                    detail("联动", value: memoryAmount(s.wiredMemory))
+                    Spacer(minLength: 4)
+                    detail("压缩", value: memoryAmount(s.memoryUsed == nil ? nil : s.compressed))
+                    Spacer(minLength: 4)
+                    detail("交换", value: memoryAmount(s.swap))
+                }.font(.system(size: 10)).monospacedDigit().lineLimit(1)
+            }
         }.buttonStyle(DashboardCardStyle(color: .purple))
-            .help("已用内存 = App + 联动 + 压缩；当前压缩 \(Format.bytes(s.compressed))。占用率不等于内存压力。点击查看内存构成。")
+            .help("内存按 1024 进制显示。已用内存 = App + 联动 + 压缩。占用率不等于内存压力；交换空间不计入已用物理内存。点击查看构成。")
     }
 
     private var diskCard: some View {
         Button { openPage(.storage) } label: {
-            VStack(alignment: .leading, spacing: 7) {
-                HStack { moduleTitle("存储", icon: "internaldrive", color: .orange); Spacer(); chevron }
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    reading(s.diskFree.map { String(format: "%.0f", $0 / 1_000_000_000) } ?? "—", unit: "GB", size: 25)
-                    Spacer(minLength: 1)
-                    Text("可用").font(.system(size: 10)).foregroundStyle(muted)
-                }
-                SegmentedLevel(value: s.diskTotal == nil || s.diskFree == nil ? nil : s.diskFraction, color: .orange).frame(height: 5)
-                HStack(spacing: 4) {
-                    Text("已用").foregroundStyle(muted)
-                    Text("\(Format.percent(s.diskTotal == nil || s.diskFree == nil ? nil : s.diskFraction))%")
-                    Spacer(minLength: 2)
-                    Text("共 \(s.diskTotal.map { Format.bytes($0) } ?? "—")").foregroundStyle(muted).monospacedDigit()
-                }.font(.system(size: 10, weight: .medium)).lineLimit(1).minimumScaleFactor(0.9)
-            }.frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) {
+                moduleTitle("存储", icon: "internaldrive", color: .orange).frame(width: 51, alignment: .leading)
+                reading(s.diskFree.map { String(format: "%.0f", $0 / 1_000_000_000) } ?? "—", unit: "GB 可用", size: 20)
+                SegmentedLevel(value: s.diskTotal == nil || s.diskFree == nil ? nil : s.diskFraction, color: .orange)
+                    .frame(maxWidth: .infinity).frame(height: 6)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("已用 \(Format.percent(s.diskTotal == nil || s.diskFree == nil ? nil : s.diskFraction))%")
+                    Text("共 \(s.diskTotal.map { Format.bytes($0) } ?? "—")").foregroundStyle(muted)
+                }.font(.system(size: 10)).monospacedDigit().fixedSize()
+                chevron
+            }
         }.buttonStyle(DashboardCardStyle(color: .orange))
             .help("用户目录所在卷的可用空间，不含系统可清除空间。点击打开空间整理。")
     }
 
     private var gpuRow: some View {
         Button { openPage(.overview) } label: {
-            HStack(spacing: 10) {
-                moduleTitle("GPU", icon: "square.stack.3d.up", color: .blue)
-                SegmentedLevel(value: s.gpu, color: .blue).frame(height: 6)
+            HStack(spacing: 8) {
+                moduleTitle("GPU", icon: "square.stack.3d.up", color: .blue).frame(width: 51, alignment: .leading)
                 Text(s.gpu.map { "\(Format.percent($0))%" } ?? (s.stamps[.gpu] == nil ? "等待采样" : "未提供"))
-                    .font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit().fixedSize()
+                    .font(.system(size: 15, weight: .semibold, design: .rounded)).monospacedDigit().fixedSize()
+                SegmentedLevel(value: s.gpu, color: .blue).frame(maxWidth: .infinity).frame(height: 6)
+                Text("总占用").font(.system(size: 10)).foregroundStyle(muted)
                 chevron
             }
         }.buttonStyle(DashboardCardStyle(color: .blue))
@@ -190,60 +187,72 @@ struct Dashboard: View {
 
     private var networkCard: some View {
         Button { openPage(.activity) } label: {
-            VStack(spacing: 8) {
-                HStack {
+            HStack(spacing: 9) {
+                VStack(alignment: .leading, spacing: 4) {
                     moduleTitle("网络", icon: "network", color: .blue)
-                    Spacer()
-                    Text(monitor.networkInterface == "all" ? "en* 接口合计" : monitor.networkInterface)
+                    Text(monitor.networkInterface == "all" ? "en* 合计" : monitor.networkInterface)
                         .font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
-                    chevron
+                }.frame(width: 56, alignment: .leading)
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1, height: 35)
+                VStack(spacing: 5) {
+                    networkValue("下载", symbol: "arrow.down", value: s.network.download, values: monitor.downloadHistory, color: mint)
+                    networkValue("上传", symbol: "arrow.up", value: s.network.upload, values: monitor.uploadHistory, color: .blue)
                 }
-                HStack(spacing: 10) {
-                    networkValue("下载", symbol: "arrow.down", value: s.network.download, color: mint)
-                    Rectangle().fill(Color.primary.opacity(0.09)).frame(width: 1, height: 27)
-                    networkValue("上传", symbol: "arrow.up", value: s.network.upload, color: .blue)
-                }
+                chevron
             }
         }.buttonStyle(DashboardCardStyle(color: .blue))
-            .help("当前传输速率。点击查看网络趋势、接口和磁盘活动。")
+            .help("实时速率与各自最近最多 60 个采样点；上传、下载曲线各自缩放。点击查看完整网络活动。")
     }
 
-    private func networkValue(_ title: String, symbol: String, value: Double, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .semibold)).foregroundStyle(color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 10)).foregroundStyle(muted)
-                Text(s.stamps[.network]?.condition == .ready ? Format.rate(value) : "—")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded)).monospacedDigit()
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            }
-            Spacer(minLength: 0)
-        }.frame(maxWidth: .infinity, alignment: .leading)
+    private func networkValue(_ title: String, symbol: String, value: Double, values: [Double], color: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(color)
+                .accessibilityLabel(title)
+            Text(s.stamps[.network]?.condition == .ready ? Format.rate(value) : "—")
+                .font(.system(size: 13, weight: .semibold, design: .rounded)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.85).frame(width: 99, alignment: .leading)
+            CompactTrend(values: values, color: color, ceiling: max(1024, values.max() ?? 0),
+                         available: s.stamps[.network]?.condition != .unavailable)
+                .frame(maxWidth: .infinity).frame(height: 16)
+        }
     }
 
     private var batteryCard: some View {
         Button { openPage(.hardware) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        moduleTitle("电池", subtitle: batteryState, icon: s.battery?.charging == true ? "bolt.fill" : "battery.100percent", color: batteryColor)
-                        Text(batterySubtitle).font(.system(size: 10)).foregroundStyle(muted).lineLimit(1)
-                    }
-                    Spacer(minLength: 1)
-                    reading(s.battery.map { Format.percent($0.percent) } ?? "—", unit: "%", size: 26)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    moduleTitle("电池", icon: s.battery?.charging == true ? "bolt.fill" : "battery.100percent", color: batteryColor)
+                        .frame(width: 51, alignment: .leading)
+                    reading(s.battery.map { Format.percent($0.percent) } ?? "—", unit: "%", size: 20)
+                    SegmentedLevel(value: s.battery?.percent, color: batteryColor)
+                        .frame(maxWidth: .infinity).frame(height: 6)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(batteryState).foregroundStyle(Color.primary)
+                        Text(batterySubtitle).foregroundStyle(muted)
+                    }.font(.system(size: 10)).lineLimit(1).frame(width: 128, alignment: .trailing)
                     chevron
                 }
-                SegmentedLevel(value: s.battery?.percent, color: batteryColor).frame(height: 5)
                 HStack(spacing: 0) {
-                    Label(s.health.temperature.map { String(format: "%.1f°C", $0) } ?? "— °C", systemImage: "thermometer.medium")
-                    Spacer(minLength: 4)
                     Text(s.health.batteryPower.map { String(format: "%@ %.1f W", s.health.powerLabel, abs($0)) } ?? "电池功率 —")
+                    Spacer(minLength: 4)
+                    Text(s.health.temperature.map { String(format: "%.1f°C", $0) } ?? "— °C")
+                    Spacer(minLength: 4)
+                    Text(s.health.voltage.map { String(format: "%.2f V", $0) } ?? "— V")
                     Spacer(minLength: 4)
                     Text(s.health.cycles.map { "\($0) 次循环" } ?? "循环 —")
                 }.font(.system(size: 10)).monospacedDigit().foregroundStyle(muted).lineLimit(1)
             }
         }.buttonStyle(DashboardCardStyle(color: batteryColor))
-            .help("电池端功率 = 电压 × 电流，与整机输入功率不同。点击查看电池健康、电芯与硬件详情。")
+            .help("\(batterySubtitle)。电池端功率 = 电压 × 电流，与整机输入功率不同。点击查看电池健康、电芯与硬件详情。")
+    }
+
+    private func memoryAmount(_ value: Double?) -> String {
+        guard let value, value.isFinite, value >= 0, value < Double(Int64.max) else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: Int64(value), countStyle: .memory)
+    }
+
+    private func detail(_ title: String, value: String) -> some View {
+        HStack(spacing: 3) { Text(title).foregroundStyle(muted); Text(value) }
     }
 
     private var footer: some View {
@@ -254,7 +263,7 @@ struct Dashboard: View {
             Spacer()
             Text("收起后降低采样").font(.system(size: 10)).foregroundStyle(muted)
             Button { openPage(.settings) } label: {
-                Image(systemName: "gearshape").font(.system(size: 12)).frame(width: 24, height: 24)
+                Image(systemName: "gearshape").font(.system(size: 12)).frame(width: 24, height: 22)
             }.buttonStyle(.plain).foregroundStyle(muted).help("设置与隐私").accessibilityLabel("设置与隐私")
         }.padding(.top, 1)
     }
@@ -309,12 +318,29 @@ private struct DashboardCardStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(11)
+            .padding(.horizontal, 9).padding(.vertical, 7)
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
             .overlay(RoundedRectangle(cornerRadius: 9).fill(color.opacity(configuration.isPressed ? 0.10 : 0.025)).allowsHitTesting(false))
             .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(color.opacity(0.17), lineWidth: 1).allowsHitTesting(false))
             .contentShape(RoundedRectangle(cornerRadius: 9))
             .accessibilityElement(children: .combine)
+    }
+}
+
+/// Reuses existing bounded samples. The compact variant omits grid lines and
+/// draws only when a sample arrives; it has no animation or refresh timer.
+private struct CompactTrend: View {
+    let values: [Double]
+    let color: Color
+    let ceiling: Double
+    let available: Bool
+    var body: some View {
+        ZStack {
+            Sparkline(values: values, color: color, ceiling: ceiling, compact: true)
+            if values.count < 2 {
+                Text(available ? "采样中" : "未提供").font(.system(size: 10)).foregroundStyle(muted)
+            }
+        }
     }
 }
 
@@ -324,7 +350,7 @@ private struct SegmentedLevel: View {
     let color: Color
     var body: some View {
         Canvas { context, size in
-            let count = 24, gap: CGFloat = 2
+            let count = max(1, min(24, Int(size.width / 7))), gap: CGFloat = 2
             let width = max(0, (size.width - CGFloat(count - 1) * gap) / CGFloat(count))
             let fraction = ChartScale.fraction(value)
             for index in 0..<count {
@@ -361,9 +387,10 @@ struct Sparkline: View {
     let values: [Double]
     let color: Color
     let ceiling: Double
+    var compact = false
     var body: some View {
         Canvas { context, size in
-            for fraction in [0.0, 0.5, 1.0] {
+            for fraction in (compact ? [] : [0.0, 0.5, 1.0]) {
                 var grid = Path()
                 grid.move(to: CGPoint(x: 0, y: size.height * fraction))
                 grid.addLine(to: CGPoint(x: size.width, y: size.height * fraction))
