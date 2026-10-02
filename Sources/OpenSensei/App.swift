@@ -89,8 +89,14 @@ enum OpenSenseiApp {
     // Development-only measurement. Runs the real UI, then closes all surfaces;
     // prints two summaries to stdout and exits, with no on-disk history.
     private func profileUI() {
-        centerState.page = CommandLine.arguments.contains("--profile-battery") ? .hardware : .cooling
-        openCenter()
+        if CommandLine.arguments.contains("--profile-dashboard") {
+            // Keep the same dashboard visible throughout the measurement even
+            // if another app takes focus. Pin state is not saved to preferences.
+            togglePin()
+        } else {
+            centerState.page = CommandLine.arguments.contains("--profile-battery") ? .hardware : .cooling
+            openCenter()
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.measureUIPhase("visible", seconds: 30) { [weak self] in
                 guard let self else { return }
@@ -118,7 +124,7 @@ enum OpenSenseiApp {
     }
 
     private func hostingController() -> NSViewController {
-        NSHostingController(rootView: Dashboard(monitor: monitor, togglePin: { [weak self] in self?.togglePin() }, close: { [weak self] in self?.hidePanel() }, collapse: { [weak self] in self?.collapsePanel() }, openCenter: { [weak self] in self?.openCenter() }))
+        NSHostingController(rootView: Dashboard(monitor: monitor, togglePin: { [weak self] in self?.togglePin() }, close: { [weak self] in self?.hidePanel() }, collapse: { [weak self] in self?.collapsePanel() }, openPage: { [weak self] page in self?.openCenterPage(page) }))
     }
 
     @objc private func toggle() {
@@ -230,6 +236,11 @@ enum OpenSenseiApp {
             // A hidden hosting view would still observe and rebuild for every sample.
             popover.contentViewController = nil
         }
+    }
+
+    private func openCenterPage(_ page: CenterPage) {
+        centerState.page = page
+        openCenter()
     }
 
     @objc private func openCenter() {

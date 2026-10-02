@@ -11,7 +11,7 @@ Open Sensei 使用原生 **SwiftUI + AppKit**，从菜单栏查看 CPU、内存�
 
 ## 安装
 
-1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.0-arm64.dmg` 和 `SHA256SUMS`。
+1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.1-arm64.dmg` 和 `SHA256SUMS`。
 2. 打开 DMG，将 **Open Sensei.app** 拖到 **Applications**。
 3. 推出磁盘映像，从“应用程序”启动。点击菜单栏图标展开，**⌘0** 打开管理窗口。
 
@@ -35,6 +35,16 @@ shasum -a 256 -c SHA256SUMS
 | 活动与诊断 | 分接口网速、磁盘活动、按需进程采样和状态检查 |
 | 存储管理 | 有预算的目录扫描、所选文件移到废纸篓、应用卸载及关联文件、SMART / TRIM、卷报告和单次测速 |
 | 报告与提醒 | 状态预览 / 复制、电池打印报告，以及可选电量、剩余时间、内存压力和空间提醒 |
+
+### 紧凑控制面板
+
+菜单栏面板优先显示此刻的数值：CPU / GPU 分段负载条、内存压力与交换空间、存储容量、上传与下载速率，以及电池功率、温度和循环次数。点击各区可直接打开对应管理页；顶部状态栏显示 macOS 热压力、采样频率和最近更新时间。
+
+完整默认面板为 400 × 569 点，1.2.0 为 384 × 719 点，高度减少约 21%。沿用现有采样周期和数据来源，不新增历史记录或动画定时器。CPU 和网络趋势图仍可在管理窗口查看。
+
+<p><img src="assets/dashboard-light.png" width="320" alt="浅色紧凑面板"> <img src="assets/dashboard-dark.png" width="320" alt="深色紧凑面板"></p>
+
+*以上为使用示例读数生成的排版预览，并非实时硬件报告。*
 
 ### 为不同数据选择不同图表
 
