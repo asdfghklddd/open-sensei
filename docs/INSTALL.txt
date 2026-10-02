@@ -1,0 +1,31 @@
+Open Sensei — Installation / 安装说明
+
+English
+1. Quit an older copy of Open Sensei if it is running.
+2. Drag Open Sensei.app onto the Applications shortcut.
+3. Eject this disk image, then launch Open Sensei from Applications.
+4. Click its menu-bar icon to open the monitor. Command-0 opens the main window.
+
+Requirements: macOS 14 or later. The published arm64 build requires Apple Silicon.
+This release is ad-hoc signed and is not Apple Developer ID notarized.
+macOS may require explicit approval in System Settings > Privacy & Security.
+Verify the download source and SHA256SUMS before deciding to open it.
+No account, subscription, Python, Node, or terminal is needed to run the app.
+Fan control alone asks for temporary administrator authorization; monitoring does not.
+
+中文
+1. 如果旧版 Open Sensei 正在运行，请先退出。
+2. 将 Open Sensei.app 拖到 Applications 快捷方式上。
+3. 推出此磁盘映像，从“应用程序”打开 Open Sensei。
+4. 点击菜单栏图标展开监测面板，Command-0 打开管理窗口。
+
+系统要求：macOS 14 或更新；发布的 arm64 版本适用于 Apple Silicon。
+此版本使用本地 ad-hoc 签名，尚未通过 Apple Developer ID 公证。
+macOS 可能要求在“系统设置 > 隐私与安全性”中由你明确允许打开。
+请先核对下载来源与 SHA256SUMS，再决定是否运行。
+运行 App 不需要账号、订阅、Python、Node 或终端。
+只有临时风扇控制需要管理员授权，普通监测无需授权。
+
+Source / 源码: https://github.com/asdfghklddd/open-sensei
+Releases / 安装包: https://github.com/asdfghklddd/open-sensei/releases
+License / 许可证: MIT

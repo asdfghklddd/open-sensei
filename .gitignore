@@ -1,0 +1,9 @@
+.build/
+build/
+dist/
+.DS_Store
+.validation/
+release-plan.json
+docs/validation-local.md
+
+docs/README-local-backup.md
