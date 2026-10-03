@@ -37,10 +37,11 @@ enum OpenSenseiApp {
     private var sleepReasons = Set<String>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Reopening the app should reveal the existing instance.
+        // A second copy may be opened after dragging a DMG into Applications.
+        // Forward the open request instead of silently discarding it.
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "local.opensensei.app")
-        if others.contains(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
-            NSApp.terminate(nil)
+        if let existing = others.first(where: { !$0.isTerminated && $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+            reopenExistingApplication(existing)
             return
         }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -82,8 +83,37 @@ enum OpenSenseiApp {
             profileUI(); return
         }
         if !launchedAtLogin {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.show() }
+            // Finder/Dock launches need an ordinary visible window, even when
+            // the status item is hidden, crowded out, or loses focus at launch.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openCenter() }
         }
+    }
+
+    private func reopenExistingApplication(_ existing: NSRunningApplication) {
+        guard let url = existing.bundleURL else {
+            explainExistingApplication()
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.createsNewApplicationInstance = false
+        configuration.allowsRunningApplicationSubstitution = false
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { [weak self] _, error in
+            DispatchQueue.main.async {
+                if error != nil { self?.explainExistingApplication() }
+                else { NSApp.terminate(nil) }
+            }
+        }
+    }
+
+    private func explainExistingApplication() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Open Sensei 已在运行"
+        alert.informativeText = "无法打开已有副本的窗口。请点击菜单栏的 Open Sensei 图标；如果刚安装了新版，请先退出已有副本，再从“应用程序”打开。"
+        alert.addButton(withTitle: "好")
+        alert.runModal()
+        NSApp.terminate(nil)
     }
 
     // Development-only measurement. Runs the real UI, then closes all surfaces;
@@ -369,7 +399,7 @@ enum OpenSenseiApp {
     func applicationWillTerminate(_ notification: Notification) { fanControl.stop(); tools.cancelAll() }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        show()
+        openCenter()
         return true
     }
 }

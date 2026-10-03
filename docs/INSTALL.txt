@@ -3,8 +3,9 @@ Open Sensei — Installation / 安装说明
 English
 1. Quit an older copy of Open Sensei if it is running.
 2. Drag Open Sensei.app onto the Applications shortcut.
-3. Eject this disk image, then launch Open Sensei from Applications.
-4. Click its menu-bar icon to open the monitor. Command-0 opens the main window.
+3. Eject this disk image, then launch Open Sensei from Applications. The management window opens.
+4. Click its menu-bar icon to open the compact monitor. Closing the main window keeps the app in the menu bar.
+5. Open the app again or press Command-0 to bring the management window back.
 
 Requirements: macOS 14 or later. The published arm64 build requires Apple Silicon.
 This release is ad-hoc signed and is not Apple Developer ID notarized.
@@ -16,8 +17,9 @@ Fan control alone asks for temporary administrator authorization; monitoring doe
 中文
 1. 如果旧版 Open Sensei 正在运行，请先退出。
 2. 将 Open Sensei.app 拖到 Applications 快捷方式上。
-3. 推出此磁盘映像，从“应用程序”打开 Open Sensei。
-4. 点击菜单栏图标展开监测面板，Command-0 打开管理窗口。
+3. 推出此磁盘映像，从“应用程序”打开 Open Sensei，会显示管理窗口。
+4. 点击菜单栏图标展开紧凑监测面板。关闭管理窗口后，App 仍在菜单栏运行。
+5. 再次打开 App 或按 Command-0，可唤回管理窗口。
 
 系统要求：macOS 14 或更新；发布的 arm64 版本适用于 Apple Silicon。
 此版本使用本地 ad-hoc 签名，尚未通过 Apple Developer ID 公证。

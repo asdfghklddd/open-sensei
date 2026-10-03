@@ -1,6 +1,6 @@
 # Validation / 验证范围
 
-Release: **1.2.2 / build 14**, 2026-10-02. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
+Release: **1.2.3 / build 15**, 2026-10-03. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
 
 ## Automated checks
 
@@ -10,6 +10,14 @@ Release: **1.2.2 / build 14**, 2026-10-02. Physical checks were performed on an 
 - Standard ICNS conversion and reverse conversion passed. Finder displayed the actual generated icon.
 - App and embedded helper passed `codesign --verify --deep --strict`; Info.plist and arm64 architecture were checked.
 - The DMG passed `hdiutil verify`. Its mounted app passed signature verification and matched the source bundle's executable SHA-256. The Applications link resolves to `/Applications`.
+
+## Launch behavior (1.2.3)
+
+- All 52 existing Swift tests passed again. The changes are limited to opening/reopening the app, version metadata and documentation.
+- The installed Applications copy displayed the management window with v1.2.3 after a cold launch and after the window was closed and the app opened again.
+- Opening a second bundle forwarded the open request to the running Applications copy. The original process remained; no second monitor process was left running.
+- App and helper signatures and the mounted DMG executable were checked against the installed copy. The compact menu-bar panel and sampling code were unchanged.
+- Login-item launch detection is unchanged; a full logout/login cycle and the error-dialog fallback were not physically exercised. Performance figures below retain their original version labels and were not remeasured for this startup-only fix.
 
 ## Dense metric rows (1.2.2)
 
@@ -83,6 +91,6 @@ The release is **ad-hoc signed and not Developer ID notarized**. The published b
 
 ## 中文摘要
 
-1.2.2 再次通过 52 项 Swift 测试；风扇部分未改动，沿用 1.2.0 的 9 项模拟会话测试及 C 侧校验。原生图标、DMG 完整性、签名、架构和挂载后的二进制一致性已检查；Finder 正确显示新图标。电池页面、报告、图表及深色外观已检查，测试后恢复跟随系统外观。
+1.2.3 再次通过 52 项 Swift 测试，并验证正式版启动、关窗后重开及重复启动只保留一个监测进程；风扇部分未改动，沿用 1.2.0 的 9 项模拟会话测试及 C 侧校验。原生图标、DMG 完整性、签名、架构和挂载后的二进制一致性已检查；Finder 正确显示新图标。电池页面、报告、图表及深色外观已检查，测试后恢复跟随系统外观。
 
 实机范围为 M1 Pro / macOS 27；其他设备、系统、实际通知投递和部分电源状态转换尚未完整覆盖。发行包采用 ad-hoc 签名，尚未公证。个人诊断、原始硬件记录和编译缓存不会发布到仓库。性能测试口径如上，不把短时样本当作所有 Mac 的保证。

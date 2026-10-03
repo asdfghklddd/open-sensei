@@ -11,9 +11,11 @@ The current interface is primarily Chinese. This repository provides English and
 
 ## Install
 
-1. Download `Open-Sensei-1.2.2-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
+1. Download `Open-Sensei-1.2.3-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
 2. Open the DMG and drag **Open Sensei.app** onto **Applications**.
-3. Eject the DMG and launch the app from Applications. Click the menu-bar icon; **⌘0** opens the management window.
+3. Eject the DMG and launch the app from Applications. The management window opens immediately. Click the menu-bar icon for the compact monitor; **⌘0** also opens the management window.
+
+Quit the running copy before replacing the app. Closing the management window keeps the menu-bar monitor running; opening the app again brings the window back.
 
 The release is **ad-hoc signed, not Developer ID notarized**. Gatekeeper may require your approval in System Settings → Privacy & Security. Verify the source and checksum before opening. No Python, Node, terminal, or developer tools are required to run the packaged app. See [installation notes](docs/INSTALL.txt).
 

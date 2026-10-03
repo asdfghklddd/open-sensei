@@ -11,9 +11,11 @@ Open Sensei 使用原生 **SwiftUI + AppKit**，从菜单栏查看 CPU、内存�
 
 ## 安装
 
-1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.2-arm64.dmg` 和 `SHA256SUMS`。
+1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.3-arm64.dmg` 和 `SHA256SUMS`。
 2. 打开 DMG，将 **Open Sensei.app** 拖到 **Applications**。
-3. 推出磁盘映像，从“应用程序”启动。点击菜单栏图标展开，**⌘0** 打开管理窗口。
+3. 推出磁盘映像，从“应用程序”启动，会直接显示管理窗口。点击菜单栏图标展开紧凑面板；**⌘0** 也可打开管理窗口。
+
+替换 App 前，请先退出正在运行的副本。关闭管理窗口后，菜单栏监测仍会运行；再次打开 App 可唤回管理窗口。
 
 当前发布包使用 **ad-hoc 签名，尚未通过 Developer ID 公证**。macOS 可能要求你在“系统设置 → 隐私与安全性”中允许打开，请先核对下载来源和校验值。运行 App 不需要 Python、Node、终端或开发工具。详见[安装说明](docs/INSTALL.txt)。
 
