@@ -11,7 +11,7 @@ Open Sensei 使用原生 **SwiftUI + AppKit**，从菜单栏查看 CPU、内存�
 
 ## 安装
 
-1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.3-arm64.dmg` 和 `SHA256SUMS`。
+1. 从 [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest) 下载 `Open-Sensei-1.2.4-arm64.dmg` 和 `SHA256SUMS`。
 2. 打开 DMG，将 **Open Sensei.app** 拖到 **Applications**。
 3. 推出磁盘映像，从“应用程序”启动，会直接显示管理窗口。点击菜单栏图标展开紧凑面板；**⌘0** 也可打开管理窗口。
 

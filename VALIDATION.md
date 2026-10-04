@@ -1,6 +1,6 @@
 # Validation / 验证范围
 
-Release: **1.2.3 / build 15**, 2026-10-03. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
+Release: **1.2.4 / build 16**, 2026-10-04. Physical checks were performed on an Apple M1 Pro running macOS 27. The package targets macOS 14+, but this is not a claim of testing every supported version or Mac model.
 
 ## Automated checks
 
@@ -10,6 +10,13 @@ Release: **1.2.3 / build 15**, 2026-10-03. Physical checks were performed on an 
 - Standard ICNS conversion and reverse conversion passed. Finder displayed the actual generated icon.
 - App and embedded helper passed `codesign --verify --deep --strict`; Info.plist and arm64 architecture were checked.
 - The DMG passed `hdiutil verify`. Its mounted app passed signature verification and matched the source bundle's executable SHA-256. The Applications link resolves to `/Applications`.
+
+## Menu-bar visibility (1.2.4)
+
+- The status item is explicitly kept visible and uses a template waveform icon so macOS can render it correctly in light and dark menu bars.
+- The item now carries a readable `Sensei · CPU xx%` label (or the selected metric), while the icon remains the click target.
+- The installed 1.2.4 app was restarted after macOS Menu Bar settings allowed Open Sensei to display. The app process is the Applications copy and the login-item setting remains enabled.
+- The 52 existing Swift tests passed. No new sampling loop, history file, or privileged service was added.
 
 ## Launch behavior (1.2.3)
 

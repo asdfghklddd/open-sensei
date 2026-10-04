@@ -45,10 +45,14 @@ enum OpenSenseiApp {
             return
         }
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem.isVisible = true
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "waveform.path", accessibilityDescription: "Open Sensei")
+            button.image?.isTemplate = true
             button.imagePosition = .imageLeading
+            button.imageScaling = .scaleProportionallyDown
             button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            button.setAccessibilityLabel("Open Sensei")
             button.target = self
             button.action = #selector(toggle)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -63,6 +67,7 @@ enum OpenSenseiApp {
             // Transient popovers can disappear when focus changes without a close callback.
             monitor.setSurface("popover", visible: popover.isShown && popover.contentViewController?.view.window?.isVisible == true)
             updateCenterVisibility()
+            statusItem.isVisible = true
             if statusItem.button?.title != monitor.menuTitle { statusItem.button?.title = monitor.menuTitle }
             statusItem.button?.toolTip = "Open Sensei · \(monitor.cadenceLabel)\nCPU \(Format.percent(monitor.snapshot.cpu))% · 内存 \(Format.percent(monitor.snapshot.memoryUsed == nil ? nil : monitor.snapshot.memoryFraction))%"
         }

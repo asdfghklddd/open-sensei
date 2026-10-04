@@ -192,12 +192,12 @@ enum Format {
     }
     var menuTitle: String {
         switch menuMetric {
-        case "memory": return " \(Format.percent(snapshot.memoryUsed == nil ? nil : snapshot.memoryFraction))%"
-        case "network": return snapshot.stamps[.network]?.condition == .ready ? " ↓ " + Format.rate(snapshot.network.download) : " ↓ —"
-        case "power": return snapshot.health.inputPower.map { String(format: " %.1f W", $0) } ?? " — W"
-        case "battery": return snapshot.battery.map { " \(Format.percent($0.percent))%" } ?? " —%"
-        case "icon": return ""
-        default: return " \(Format.percent(snapshot.cpu))%"
+        case "memory": return " Sensei · 内存 \(Format.percent(snapshot.memoryUsed == nil ? nil : snapshot.memoryFraction))%"
+        case "network": return snapshot.stamps[.network]?.condition == .ready ? " Sensei · ↓ " + Format.rate(snapshot.network.download) : " Sensei · ↓ —"
+        case "power": return snapshot.health.inputPower.map { String(format: " Sensei · %.1f W", $0) } ?? " Sensei · — W"
+        case "battery": return snapshot.battery.map { " Sensei · 电池 \(Format.percent($0.percent))%" } ?? " Sensei · 电池 —%"
+        case "icon": return " Sensei"
+        default: return " Sensei · CPU \(Format.percent(snapshot.cpu))%"
         }
     }
     func setSurface(_ name: String, visible isVisible: Bool, domains: Set<MetricDomain>? = nil) {
