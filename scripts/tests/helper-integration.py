@@ -37,3 +37,21 @@ def run(case,extra=None):
         if case=='curve':assert 'ACTIVE curve' in replies and 'SET 0 4560' in out,(replies,out)
         print('PASS',case,flush=True)
 for name,env in [('disconnect',None),('curve',None),('signal',None),('failed_write',{'FAIL_WRITE':'1'}),('failed_restore',{'FAIL_RESTORE':'1'}),('external_controller',{'EXTERNAL':'1'}),('no_temperature',{'FAIL_TEMP':'1'}),('watchdog',None),('deadline',None)]:run(name,env)
+
+for failing in (False, True):
+    with tempfile.TemporaryDirectory(prefix='OpenSensei-Fan-',dir='/private/tmp') as directory:
+        path=directory+'/session.sock'
+        listener=socket.socket(socket.AF_UNIX);listener.bind(path);os.chmod(path,0o600);listener.listen(1);listener.settimeout(5)
+        env=os.environ.copy()
+        env['FAIL_TEMP']='1' # Recovery must not depend on temperature sensors.
+        if failing:env['FAIL_RESTORE']='1'
+        p=subprocess.Popen([helper,path,str(os.getuid()),'10','40','2'],stdout=subprocess.PIPE,text=True,env=env)
+        conn,_=listener.accept();conn.settimeout(10)
+        replies=conn.makefile('r').read()
+        out,_=p.communicate(timeout=5)
+        assert 'RECOVERING' in replies and 'SET' not in out,(replies,out)
+        if failing:
+            assert 'fan=1' in replies and 'fan=2' in replies and 'RESTORED' not in replies,replies
+        else:assert 'RESTORED' in replies,replies
+        conn.close();listener.close()
+        print('PASS recovery',failing,flush=True)

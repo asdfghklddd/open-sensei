@@ -23,16 +23,16 @@ enum FanControlMode: Int, CaseIterable, Identifiable {
     private var generation = UUID()
     var onRestore: (() -> Void)?
 
-    func start() {
-        guard !busy, !state.requiresRecovery else { return }
+    func start(recovery: Bool = false) {
+        guard !busy, !state.requiresRecovery || recovery else { return }
         guard let helper = Bundle.main.url(forAuxiliaryExecutable: "FanHelper") else {
             state.receive("ERROR authorization helper missing", duration: duration); return
         }
         let id = UUID(); generation = id
-        state.start()
+        state.start(recovery: recovery)
         let worker = FanSession()
         session = worker
-        worker.start(helper: helper.path, duration: duration, percent: Int(percentage), mode: mode.rawValue) { [weak self] event in
+        worker.start(helper: helper.path, duration: duration, percent: Int(percentage), mode: recovery ? 2 : mode.rawValue) { [weak self] event in
             DispatchQueue.main.async {
                 guard let self, self.generation == id else { return }
                 self.state.receive(event, duration: self.duration)
@@ -151,7 +151,7 @@ private final class FanSession: @unchecked Sendable {
             guard getpeereid(fd, &uid, &gid) == 0, uid == 0 else { callback("ERROR peer"); return }
             var one: Int32 = 1
             setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-            var timeout = timeval(tv_sec: 10, tv_usec: 0)
+            var timeout = timeval(tv_sec: 45, tv_usec: 0)
             setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
             lock.lock(); client = fd; everConnected = true; let stopped = cancelled; lock.unlock()
             if stopped { shutdown(fd, SHUT_WR) }

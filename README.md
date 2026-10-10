@@ -11,7 +11,7 @@ The current interface is primarily Chinese. This repository provides English and
 
 ## Install
 
-1. Download `Open-Sensei-1.2.4-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
+1. Download `Open-Sensei-1.2.5-arm64.dmg` and `SHA256SUMS` from [Releases](https://github.com/asdfghklddd/open-sensei/releases/latest).
 2. Open the DMG and drag **Open Sensei.app** onto **Applications**.
 3. Eject the DMG and launch the app from Applications. The management window opens immediately. Click the menu-bar icon for the compact monitor; **⌘0** also opens the management window.
 

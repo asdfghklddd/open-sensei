@@ -15,9 +15,11 @@ struct FanSessionState {
     var active: Bool { phase == .running }
     var stopLabel: String { mayHaveControlled ? "恢复系统自动" : "取消授权" }
 
-    mutating func start() {
-        guard !busy, !requiresRecovery else { return }
+    mutating func start(recovery: Bool = false) {
+        guard !busy, !requiresRecovery || recovery else { return }
+        let needsRecovery = requiresRecovery
         self = FanSessionState()
+        requiresRecovery = needsRecovery
         phase = .authorizing; status = "等待 macOS 管理员授权…"
     }
     mutating func stop() {
@@ -35,7 +37,11 @@ struct FanSessionState {
             if endsAt == nil { endsAt = now.addingTimeInterval(Double(duration)) }
             phase = .running
             status = event.hasSuffix("thermal") ? "温度升高 · 已提高散热转速" : (event.hasSuffix("curve") ? "温度曲线运行中" : "固定转速会话运行中")
+        case "RECOVERING":
+            phase = .applying; mayHaveControlled = true
+            status = "正在验证并恢复系统自动调节…"
         case "RESTORED":
+            requiresRecovery = false; error = nil
             restored = true; status = "已确认恢复系统自动调节"
         case "FINISHED":
             guard busy else { return }
@@ -51,14 +57,21 @@ struct FanSessionState {
             if event.hasPrefix("ERROR authorization"), phase != .authorizing && phase != .stopping { return }
             if event.contains("restore failed") {
                 requiresRecovery = true
-                error = "未能确认自动模式已恢复。请重启 Mac 恢复固件默认控制；本次不再允许启动手动会话。"
+                let record = event.components(separatedBy: " | ").dropFirst().joined(separator: " | ")
+                if !record.isEmpty { detail = [detail, record].compactMap { $0 }.joined(separator: "\n") }
+                let reason = event.contains("stage=4 ") ? "写入自动模式失败" : event.contains("stage=5 ") ? "自动模式回读失败" : event.contains("stage=6 ") ? "等待 1 秒后仍未读到自动模式" : "恢复自动模式未通过验证"
+                error = "\(reason)。请停止其他风扇软件的手动控制，再点“重新验证并恢复自动”；仍失败时请重启 Mac。"
             } else if event.contains("control failed") {
                 detail = event.components(separatedBy: " | ").dropFirst().first.map { String($0.prefix(180)) }
                 restored = event.contains("; restored")
                 requiresRecovery = !restored
-                error = restored ? "当前硬件未通过转速设置验证，已确认恢复自动模式。" : "转速设置失败，未确认恢复。请重启 Mac。"
+                let reason = Self.failureReason(event)
+                error = restored ? "\(reason)，已确认恢复自动模式。" : "\(reason)，未确认恢复。请重新验证并恢复自动。"
+            } else if event.contains("SMC unavailable") {
+                error = "无法打开风扇硬件接口或读取风扇数量。请重新验证；持续失败时请重启 Mac。"
             } else if event.contains("unsupported") {
-                error = "控制接口不受支持，或其他软件已在控制风扇。请先在其他风扇软件中恢复自动模式。"
+                detail = event.components(separatedBy: " | ").dropFirst().first
+                error = "\(Self.failureReason(event))。未开始调速；请检查读数及其他风扇软件后重试。"
             } else if event.contains("authorization timeout") {
                 error = "两分钟内未完成系统授权，已取消本次会话；未写入风扇设置。"
             } else if event.contains("authorization cancelled") {
@@ -69,6 +82,23 @@ struct FanSessionState {
                 error = "无法建立风扇会话。若已开始调速，组件将在断连或心跳超时后尝试恢复自动模式。"
             }
         }
+    }
+
+    private static func failureReason(_ event: String) -> String {
+        let reasons = [
+            ("reason=mode_read", "无法读取风扇控制模式"),
+            ("reason=not_automatic", "风扇当前不是自动模式，可能已有其他控制程序接管"),
+            ("reason=minimum_read", "无法读取风扇最低转速"),
+            ("reason=maximum_read", "无法读取风扇最高转速"),
+            ("reason=invalid_range", "硬件返回的转速范围无效"),
+            ("reason=temperature_unavailable", "CPU / GPU 温度读数不可用"),
+            ("reason=invalid_curve", "温度曲线计算结果无效"),
+            ("reason=mode_changed_or_unreadable", "运行中风扇模式被改变或无法读取"),
+            ("stage=1 ", "硬件拒绝手动模式写入"),
+            ("stage=2 ", "风扇目标转速写入失败"),
+            ("stage=3 ", "设置后回读的模式或目标转速未通过验证")
+        ]
+        return reasons.first(where: { event.contains($0.0) })?.1 ?? "风扇控制接口未通过验证"
     }
 
     func title(for sensors: SensorSnapshot) -> String {

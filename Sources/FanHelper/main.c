@@ -47,12 +47,18 @@ static double curve_target(double percent,double low,double high,double previous
     return protected_target(wanted,low,high,rawTemperature);
 }
 static int send_text(int fd,const char *text) { return send(fd,text,strlen(text),0)==(ssize_t)strlen(text) ? 0 : -1; }
-static int restore(OSSMC *s,int count,unsigned touched) {
+static int restore(OSSMC *s,int count,unsigned touched,int fd) {
     int success=1;
     for (int f=0;f<count;f++) if (touched & (1u<<f)) {
         int ok=0;
         for(int retry=0;retry<3;retry++) { if(!os_smc_fan_auto(s,f)) { ok=1; break; } usleep(100000); }
-        if(!ok)success=0;
+        if(!ok) {
+            success=0;
+            OSSMCFailure failure=os_smc_last_failure(s);
+            char detail[240];
+            snprintf(detail,sizeof(detail),"ERROR restore failed | fan=%d stage=%d io=0x%x smc=%u bytes=%u mode=%.0f\n",f+1,failure.stage,failure.kernelStatus,failure.firmwareStatus,failure.responseSize,failure.mode);
+            send_text(fd,detail);
+        }
     }
     return success;
 }
@@ -98,9 +104,9 @@ int main(void) {
 }
 #else
 int main(int argc,char **argv) {
-    // Args fixed at session creation: socket, uid, duration, floor percentage, optional curve.
+    // Args fixed at session creation: socket, uid, duration, floor percentage, mode (0 fixed, 1 curve, 2 recover).
     long uid,seconds,percent,curveMode=0;
-    if((argc!=5 && argc!=6) || integer(argv[2],1,INT32_MAX,&uid) || integer(argv[3],10,1800,&seconds) || integer(argv[4],0,100,&percent) || (argc==6 && integer(argv[5],0,1,&curveMode)))return 2;
+    if((argc!=5 && argc!=6) || integer(argv[2],1,INT32_MAX,&uid) || integer(argv[3],10,1800,&seconds) || integer(argv[4],0,100,&percent) || (argc==6 && integer(argv[5],0,2,&curveMode)))return 2;
     #ifndef FAN_HELPER_SIMULATOR
     if(geteuid()!=0){fprintf(stderr,"Fan control requires macOS administrator authorization.\n");return 3;}
     #endif
@@ -121,19 +127,30 @@ int main(int argc,char **argv) {
     OSSMC *smc=os_smc_open();double n=0;
     if(!smc||os_smc_read(smc,"FNum",&n)||n<1||n>8){send_text(fd,"ERROR SMC unavailable\n");os_smc_close(smc);close(fd);return 5;}
     int count=(int)n; double low[8],high[8],requested[8],last[8],ramp[8];unsigned touched=0;
-    int failure=0,failedFan=-1;
+    if(curveMode==2) {
+        send_text(fd,"RECOVERING\n");
+        int recovered=restore(smc,count,(1u<<count)-1,fd);
+        if(recovered)send_text(fd,"RESTORED\n");
+        os_smc_close(smc);close(fd);return recovered?0:8;
+    }
+    int failure=0,failedFan=-1; const char *reason="unknown";
     OSSMCFailure writeFailure={0};
     for(int f=0;f<count;f++) {
         char key[5];double mode;
         snprintf(key,5,"F%dMd",f);
-        if(os_smc_read(smc,key,&mode)||!(mode==0||mode==3)){failure=1;break;}
-        snprintf(key,5,"F%dMn",f);if(os_smc_read(smc,key,&low[f])){failure=1;break;}
-        snprintf(key,5,"F%dMx",f);if(os_smc_read(smc,key,&high[f])){failure=1;break;}
-        if(low[f]<0||high[f]<=low[f]||high[f]>20000){failure=1;break;}
+        if(os_smc_read(smc,key,&mode)){failure=1;reason="mode_read";failedFan=f;break;}
+        if(!(mode==0||mode==3)){failure=1;reason="not_automatic";failedFan=f;break;}
+        snprintf(key,5,"F%dMn",f);if(os_smc_read(smc,key,&low[f])){failure=1;reason="minimum_read";failedFan=f;break;}
+        snprintf(key,5,"F%dMx",f);if(os_smc_read(smc,key,&high[f])){failure=1;reason="maximum_read";failedFan=f;break;}
+        if(low[f]<0||high[f]<=low[f]||high[f]>20000){failure=1;reason="invalid_range";failedFan=f;break;}
         requested[f]=low[f]+(high[f]-low[f])*percent/100.0;last[f]=ramp[f]=-1;
     }
     char keys[128][5];int sensorCount=discover(smc,keys);
-    if(failure || temperature(smc,keys,sensorCount)<0){send_text(fd,"ERROR unsupported or another controller active\n");os_smc_close(smc);close(fd);return 6;}
+    if(!failure && temperature(smc,keys,sensorCount)<0){failure=1;reason="temperature_unavailable";}
+    if(failure) {
+        char detail[180];snprintf(detail,sizeof(detail),"ERROR unsupported | fan=%d reason=%s\n",failedFan+1,reason);
+        send_text(fd,detail);os_smc_close(smc);close(fd);return 6;
+    }
     if(send_text(fd,"READY\n")){os_smc_close(smc);close(fd);return 7;}
     double start=monotime(),heartbeat=start,lastTick=0;int activated=0;CurveState curve={0};
     while(!stopped && monotime()-start<seconds) {
@@ -152,16 +169,16 @@ int main(int argc,char **argv) {
         if(lastTick>0 && now-lastTick>6)break;
         lastTick=now;
         double temp=temperature(smc,keys,sensorCount);
-        if(temp<0){failure=1;break;}
+        if(temp<0){failure=1;reason="temperature_unavailable";break;}
         double curvePercent=curveMode?curve_percent(&curve,temp,percent,now):percent;
-        if(!isfinite(curvePercent)){failure=1;break;}
+        if(!isfinite(curvePercent)){failure=1;reason="invalid_curve";break;}
         for(int f=0;f<count;f++) {
             double rawTarget=curveMode?curve_target(curvePercent,low[f],high[f],ramp[f],temp):protected_target(requested[f],low[f],high[f],temp);
             ramp[f]=rawTarget; // Accumulate small downward steps even below the write deadband.
             double target=fmin(high[f],fmax(low[f],round(rawTarget)));
             // Do not repeatedly write if the target is unchanged, but detect external overrides.
             char key[5];double mode;snprintf(key,5,"F%dMd",f);
-            if(last[f]>=0 && (os_smc_read(smc,key,&mode)||mode!=1)){failure=1;break;}
+            if(last[f]>=0 && (os_smc_read(smc,key,&mode)||mode!=1)){failure=1;reason="mode_changed_or_unreadable";break;}
             if(last[f]<0||fabs(target-last[f])>=50) {
                 touched|=1u<<f;
                 if(os_smc_fan_set(smc,f,target)){failure=1;failedFan=f;writeFailure=os_smc_last_failure(smc);break;}
@@ -171,11 +188,16 @@ int main(int argc,char **argv) {
         if(failure)break;
         if(send_text(fd,temp>=85 ? "ACTIVE thermal\n" : curveMode ? "ACTIVE curve\n" : "ACTIVE manual\n"))break;
     }
-    int restored=restore(smc,count,touched);
+    int restored=restore(smc,count,touched,fd);
     if(restored && failure && failedFan>=0) {
         char detail[200];snprintf(detail,sizeof(detail),"ERROR control failed; restored | fan=%d stage=%d io=0x%x smc=%u bytes=%u mode=%.0f target=%.0f\n",failedFan+1,writeFailure.stage,writeFailure.kernelStatus,writeFailure.firmwareStatus,writeFailure.responseSize,writeFailure.mode,writeFailure.target);
         send_text(fd,detail);
-    } else send_text(fd,!restored ? "ERROR restore failed\n" : (failure ? "ERROR control failed; restored\n" : "RESTORED\n"));
+    } else if(restored) {
+        if(failure) {
+            char detail[180];snprintf(detail,sizeof(detail),"ERROR control failed; restored | reason=%s\n",reason);
+            send_text(fd,detail);
+        } else send_text(fd,"RESTORED\n");
+    }
     os_smc_close(smc);close(fd);
     return restored&&!failure ? 0 : 8;
 }

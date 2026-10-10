@@ -10,8 +10,16 @@ mv -f "$APP/Contents/MacOS/FanHelper.next" "$APP/Contents/MacOS/FanHelper"
 codesign --force --sign - "$APP/Contents/MacOS/FanHelper"
 cp .build/release/OpenSensei "$APP/Contents/MacOS/OpenSensei.next"
 mv -f "$APP/Contents/MacOS/OpenSensei.next" "$APP/Contents/MacOS/OpenSensei"
-swift -module-cache-path "$PWD/.build/clang-cache" scripts/icon.swift "$PWD/.build/AppIcon.iconset"
-cp "$PWD/.build/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+if swift -module-cache-path "$PWD/.build/clang-cache" scripts/icon.swift "$PWD/.build/AppIcon.iconset"; then
+    cp "$PWD/.build/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+elif [[ -f "$APP/Contents/Resources/AppIcon.icns" ]]; then
+    # Some newer Xcode releases reject otherwise valid iconsets when running
+    # iconutil. Keep the last verified ICNS so packaging can still proceed.
+    print -u2 'warning: iconutil rejected the iconset; reusing the existing verified AppIcon.icns'
+else
+    print -u2 'iconutil failed and no existing AppIcon.icns is available'
+    exit 1
+fi
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -21,8 +29,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Open Sensei</string>
 <key>CFBundleDisplayName</key><string>Open Sensei</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.2.4</string>
-<key>CFBundleVersion</key><string>16</string>
+<key>CFBundleShortVersionString</key><string>1.2.5</string>
+<key>CFBundleVersion</key><string>17</string>
 <key>CFBundleIconFile</key><string>AppIcon.icns</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>

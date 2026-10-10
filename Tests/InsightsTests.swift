@@ -100,4 +100,27 @@ final class InsightsTests: XCTestCase {
         XCTAssertTrue(state.requiresRecovery)
         XCTAssertEqual(state.title(for: SensorSnapshot(available: true)), "待确认恢复")
     }
+    func testRecoveryCanRetryWithoutDroppingLockBeforeConfirmation() {
+        var state = FanSessionState()
+        state.start(); state.receive("READY", duration: 300)
+        state.receive("ERROR restore failed | fan=2 stage=6 io=0x0 smc=0 bytes=80 mode=1", duration: 300)
+        state.receive("FINISHED", duration: 300)
+        XCTAssertTrue(state.error?.contains("1 秒") == true)
+        XCTAssertTrue(state.detail?.contains("fan=2") == true)
+        state.start()
+        XCTAssertFalse(state.busy)
+        state.start(recovery: true)
+        XCTAssertTrue(state.busy); XCTAssertTrue(state.requiresRecovery)
+        state.receive("ERROR authorization timeout", duration: 300)
+        state.receive("FINISHED", duration: 300)
+        XCTAssertTrue(state.requiresRecovery)
+        state.start(recovery: true)
+        state.receive("RECOVERING", duration: 300)
+        state.receive("RESTORED", duration: 300)
+        state.receive("FINISHED", duration: 300)
+        XCTAssertFalse(state.requiresRecovery); XCTAssertNil(state.error)
+        state.start()
+        XCTAssertTrue(state.busy)
+    }
+
 }

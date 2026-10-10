@@ -94,10 +94,29 @@ static int verify_fan(OSSMC *s,const char *modeKey,const char *targetKey,double 
     return -1;
 }
 int os_smc_fan_auto(OSSMC *s,int fan) {
-    if (fan<0 || fan>7) return -1;
+    if (!s || fan<0 || fan>7) return -1;
+    s->failure=(OSSMCFailure){.mode=-1,.target=-1};
     char key[5]={'F',(char)('0'+fan),'M','d',0};
-    if (write_value(s,key,0)) return -1;
-    double mode; return os_smc_read(s,key,&mode)==0 && (mode==0 || mode==3) ? 0 : -1;
+    // A verified automatic mode needs no write.
+    double mode=-1;
+    if (!os_smc_read(s,key,&mode) && (mode==0 || mode==3)) return 0;
+    if (write_value(s,key,0)) {
+        s->failure=(OSSMCFailure){.stage=4,.kernelStatus=s->lastKernel,.firmwareStatus=s->lastFirmware,.responseSize=s->lastSize,.mode=mode,.target=-1};
+        return -1;
+    }
+    int readFailed=0;
+    for(int attempt=0;attempt<=10;attempt++) {
+        mode=-1; readFailed=os_smc_read(s,key,&mode);
+        if(!readFailed && (mode==0 || mode==3)) return 0;
+        if(attempt<10) { struct timespec pause={0,100000000}; nanosleep(&pause,NULL); }
+    }
+    s->failure=(OSSMCFailure){.stage=readFailed?5:6,.kernelStatus=s->lastKernel,.firmwareStatus=s->lastFirmware,.responseSize=s->lastSize,.mode=mode,.target=-1};
+    return -1;
+}
+static void rollback(OSSMC *s,int fan) {
+    OSSMCFailure original=s->failure;
+    os_smc_fan_auto(s,fan);
+    s->failure=original;
 }
 int os_smc_fan_set(OSSMC *s,int fan,double rpm) {
     if (!s || fan<0 || fan>7 || !isfinite(rpm)) return -1;
@@ -109,17 +128,17 @@ int os_smc_fan_set(OSSMC *s,int fan,double rpm) {
     KeyInfo targetInfo; if (info(s,tg,&targetInfo)) return -1;
     if (write_value(s,md,1)) {
         s->failure=(OSSMCFailure){.stage=1,.kernelStatus=s->lastKernel,.firmwareStatus=s->lastFirmware,.responseSize=s->lastSize,.mode=-1,.target=-1};
-        os_smc_fan_auto(s,fan); return -1;
+        rollback(s,fan); return -1;
     }
     if (write_value(s,tg,rpm)) {
         s->failure=(OSSMCFailure){.stage=2,.kernelStatus=s->lastKernel,.firmwareStatus=s->lastFirmware,.responseSize=s->lastSize,.mode=-1,.target=-1};
-        os_smc_fan_auto(s,fan); return -1;
+        rollback(s,fan); return -1;
     }
     double actualMode,target;
     actualMode=target=-1;
     if (verify_fan(s,md,tg,rpm,&actualMode,&target)) {
         s->failure=(OSSMCFailure){.stage=3,.kernelStatus=s->lastKernel,.firmwareStatus=s->lastFirmware,.responseSize=s->lastSize,.mode=actualMode,.target=target};
-        os_smc_fan_auto(s,fan); return -1;
+        rollback(s,fan); return -1;
     }
     return 0;
 }

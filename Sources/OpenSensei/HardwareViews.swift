@@ -80,7 +80,9 @@ struct CoolingView: View {
                 }
             }
             FanControlPanel(fans: sensors.fans.filter(\.controllable).map(FanControlRange.init),
-                            canStart: !sensors.fans.isEmpty && sensors.fans.allSatisfy(\.controllable) && sensors.hottest != nil,
+                            unavailableReason: sensors.fans.isEmpty ? "没有可用的风扇读数，暂时无法调速。"
+                                : !sensors.fans.allSatisfy(\.controllable) ? "部分风扇的模式或转速范围不可用，暂时无法调速。"
+                                : sensors.hottest == nil ? "CPU / GPU 温度读数不可用，暂时无法调速。" : nil,
                             control: control).equatable()
             ThermalTrendView(history: history)
             DisclosureGroup("传感器读数 · \(sensors.temperatures.count) 项") {
@@ -123,11 +125,11 @@ private struct FanControlRange: Identifiable, Equatable {
 
 private struct FanControlPanel: View, Equatable {
     let fans: [FanControlRange]
-    let canStart: Bool
+    let unavailableReason: String?
     @ObservedObject var control: FanControl
     @State private var showingAuthorization = false
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.fans == rhs.fans && lhs.canStart == rhs.canStart && lhs.control === rhs.control
+        lhs.fans == rhs.fans && lhs.unavailableReason == rhs.unavailableReason && lhs.control === rhs.control
     }
     var body: some View {
             VStack(alignment: .leading, spacing: 16) {
@@ -177,14 +179,24 @@ private struct FanControlPanel: View, Equatable {
                         Text("结束于 \(date.formatted(date: .omitted, time: .shortened))").font(.system(size: 11)).foregroundStyle(SenseiTheme.secondary)
                     }
                     Button(control.busy ? "会话进行中" : "授权并开始…") { showingAuthorization = true }
-                        .buttonStyle(.borderedProminent).disabled(control.busy || control.state.requiresRecovery || !canStart)
+                        .buttonStyle(.borderedProminent).disabled(control.busy || control.state.requiresRecovery || unavailableReason != nil)
+                }
+                if let unavailableReason {
+                    Label(unavailableReason, systemImage: "info.circle")
+                        .font(.system(size: 12)).foregroundStyle(.orange)
+                }
+                if control.state.requiresRecovery {
+                    Button("重新验证并恢复自动…") { control.start(recovery: true) }
+                        .disabled(control.busy)
+                    Text("此操作需要管理员授权。逐个检查风扇并尝试恢复自动模式，确认成功后可再次开始调速。请先停止其他风扇软件的手动控制。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 if let error = control.error {
                     Label(error, systemImage: "exclamationmark.triangle").font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
                 if let detail = control.state.detail {
                     Text(detail).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
-                        .help("仅保存在本次会话内存中。stage 1：模式写入；2：目标写入；3：回读验证。")
+                        .help("仅保存在本次会话内存中。fan：风扇编号；stage 1：模式写入；2：目标写入；3：转速验证；4：恢复写入；5：恢复回读；6：恢复验证超时。io：系统返回码；smc：固件返回码；mode：回读模式（-1 为不可用）。")
                 }
                 Divider()
                 Label("会话结束、退出 App、睡眠或连接中断后，控制组件会尝试恢复自动模式。组件仅在会话期间运行，不写日志；同时只使用一个风扇控制软件。", systemImage: "shield.lefthalf.filled")

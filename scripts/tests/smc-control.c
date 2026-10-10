@@ -8,6 +8,7 @@ static kern_return_t mocked(mach_port_t,uint32_t,const void*,size_t,void*,size_t
 #include <stdio.h>
 
 static int mode, writes, modeFailure, targetFailure, missingTarget, wrongTarget, shortWrite, settling, pending;
+static int autoDelay, autoPending, autoReject, autoUnreadable, autoStuck;
 static float target;
 static kern_return_t mocked(mach_port_t connection,uint32_t selector,const void *input,size_t n,void *output,size_t *length) {
     const Packet *in=input; Packet *out=output;
@@ -17,13 +18,15 @@ static kern_return_t mocked(mach_port_t connection,uint32_t selector,const void 
         if(tg && missingTarget) { out->result=(char)132; return KERN_SUCCESS; }
         out->info.size=md?1:4; out->info.type=code(md?"ui8 ":"flt ");
     } else if(in->command==5) {
-        if(md) { if(pending>0 && --pending==0)mode=1; out->bytes[0]=mode; }
+        if(md) { if(autoUnreadable)return kIOReturnError; if(autoPending>0 && --autoPending==0)mode=0; if(pending>0 && --pending==0)mode=1; out->bytes[0]=mode; }
         else {
             float value=in->key==code("F0Mn")?1200:in->key==code("F0Mx")?6000:target-(wrongTarget?200:0);
             memcpy(out->bytes,&value,4);
         }
     } else if(in->command==6) {
         writes++;
+        if(md && in->bytes[0]==0 && autoReject) { out->result=(char)132; return KERN_SUCCESS; }
+        if(md && in->bytes[0]==0 && (autoDelay || autoStuck)) { autoPending=autoDelay?4:0; return KERN_SUCCESS; }
         if((md && in->bytes[0]==1 && modeFailure) || (tg && targetFailure)) { out->result=(char)132; return KERN_SUCCESS; }
         if(md) { if(in->bytes[0]==1 && settling)pending=4; else { mode=in->bytes[0]; pending=0; } }
         else if(tg)memcpy(&target,in->bytes,4);
@@ -32,6 +35,7 @@ static kern_return_t mocked(mach_port_t connection,uint32_t selector,const void 
     return KERN_SUCCESS;
 }
 static OSSMC reset(void) {
+    autoDelay=autoPending=autoReject=autoUnreadable=autoStuck=0;
     mode=writes=modeFailure=targetFailure=missingTarget=wrongTarget=shortWrite=settling=pending=0; target=0;
     return (OSSMC){0};
 }
@@ -56,5 +60,15 @@ int main(void) {
     assert(s.failure.stage==2 && s.failure.responseSize==0);
     s=reset(); settling=1;
     assert(!os_smc_fan_set(&s,0,3120) && mode==1 && target==3120 && writes==2);
+    s=reset(); mode=1; autoDelay=1;
+    assert(!os_smc_fan_auto(&s,0) && mode==0 && writes==1);
+    s=reset(); mode=3;
+    assert(!os_smc_fan_auto(&s,0) && writes==0);
+    s=reset(); mode=1; autoReject=1;
+    assert(os_smc_fan_auto(&s,0) && s.failure.stage==4 && s.failure.firmwareStatus==132);
+    s=reset(); mode=1; autoUnreadable=1;
+    assert(os_smc_fan_auto(&s,0) && s.failure.stage==5);
+    s=reset(); mode=1; autoStuck=1;
+    assert(os_smc_fan_auto(&s,0) && s.failure.stage==6 && s.failure.mode==1);
     puts("PASS SMC fan bounds, encoding, preflight, stage diagnostics and partial-write rollback");
 }
